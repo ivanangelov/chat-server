@@ -1,0 +1,16 @@
+Chat server:
+
+Client commands:
+- connect <host> <port> - connect to the server
+- register <username> <password> - register user
+- login <username> <password> - log into the system
+- disconnect – logout of the system
+- list-users – list all active users
+- send <username> <message> - send DM to a user
+- send-file <username> <file_location> - send file to a user
+- create-room <room_name> - create new chat room
+- delete-room <room_name> - delete existing chat room
+- join-room <room_name> - join existing chat room
+- leave-room <room_name> - leave chat room
+- list-rooms - list all active chat rooms (with >=1 active users)
+- list-users <room> - list all active users in the chat room
