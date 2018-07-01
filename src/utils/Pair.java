@@ -1,5 +1,10 @@
 package bg.uni.sofia.fmi.mjt.finals.utils;
 
+/**
+ * Represents a Pair of two values.
+ * @param <K> the type of the first value
+ * @param <V> the type of the second value
+ */
 public class Pair<K, V> {
     private K key;
     private V value;
