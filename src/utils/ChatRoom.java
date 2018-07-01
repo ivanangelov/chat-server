@@ -6,12 +6,16 @@ import java.util.Vector;
 
 import bg.uni.sofia.fmi.mjt.finals.server.ClientThread;
 
+/**
+ * Represents a chat room. The chat room can contain
+ * multiple different users.
+ */
 public class ChatRoom {
     private final String roomName;
     private final String creatorUsername;
     private final Hashtable<String, ClientThread> members;
     private File historyFile;
-    private BufferedWriter bufferedWriter;
+    private BufferedWriter chatHistoryBufferedWriter;
 
     public ChatRoom(String roomName, String creatorUsername) {
         this.roomName = roomName;
@@ -25,19 +29,19 @@ public class ChatRoom {
         try {
             this.historyFile.createNewFile();
             this.historyFile.deleteOnExit();
-            this.bufferedWriter = new BufferedWriter(new FileWriter(this.historyFile));
+            this.chatHistoryBufferedWriter = new BufferedWriter(new FileWriter(this.historyFile));
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Failed to initialize the file.  " + e.getMessage());
         }
     }
 
     public synchronized void writeToFile(String message) {
         try {
-            this.bufferedWriter.write(message);
-            this.bufferedWriter.newLine();
-            this.bufferedWriter.flush();
+            this.chatHistoryBufferedWriter.write(message);
+            this.chatHistoryBufferedWriter.newLine();
+            this.chatHistoryBufferedWriter.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Failed to write to the file. " + e.getMessage());
         }
 
     }
@@ -51,7 +55,7 @@ public class ChatRoom {
         return false;
     }
 
-    public Vector<ClientThread> getActiveUsersRoom() {
+    public Vector<ClientThread> getActiveUsersInRoom() {
         Vector<ClientThread> activeUsers = new Vector<>();
         for (ClientThread member : this.members.values()) {
             if (member.getIsLoggedIn()) {

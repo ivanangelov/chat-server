@@ -10,11 +10,14 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Scanner;
 
+/**
+ * Represents a thread for a single client. Every client has his own thread.
+ * Provides methods for validating the client's messages.
+ */
 public class ClientThread implements Runnable {
     private String name;
     private String password;
     private final Server server;
-    private final Socket socket;
     private InputStream clientInputStream;
     private PrintWriter printWriter;
     private boolean isLoggedIn;
@@ -24,8 +27,7 @@ public class ClientThread implements Runnable {
 
     public ClientThread(Server server, Socket socket) {
         this.server = server;
-        this.socket = socket;
-        this.initializeStreams(this.socket);
+        this.initializeStreams(socket);
     }
 
     private void initializeStreams(Socket socket) {
@@ -44,55 +46,64 @@ public class ClientThread implements Runnable {
     public PrintWriter getPrintWriter() {
         return this.printWriter;
     }
-
-    private boolean isMemberOfGivenChatRoom(String roomName) {
-        return this.server.getChatRoomByName(roomName).containsMember(this.name);
-    }
-
-    private boolean isValidLocation(String path) {
-        if (!path.contains("/")) {
-            return false;
-        }
-        String newFilePath = "";
-        int index = path.lastIndexOf("/");
-        if (index > 0) {
-            newFilePath = path.substring(0, index);
-        }
-
-        return Paths.get(newFilePath).toFile().isDirectory();
-    }
-
     public boolean getIsLoggedIn() {
         return this.isLoggedIn;
     }
 
-    private void setSendingFilePath(String path) {
-        this.sendingFilePath = path;
-    }
+    @Override
+    public void run() {
+        Scanner scanner = new Scanner(this.clientInputStream);
+        String message;
 
-    private void registerUser(String name, String password) {
-        if (this.name != null) {
-            this.printWriter.println("You have already registered into the system");
-        } else if (this.server.isUsedUserData(name, password)) {
-            this.printWriter.println("Choose another username or password");
-        } else {
-            this.name = name;
-            this.password = password;
-            this.server.addInfoToDocumentation(this.name, this.password);
-            this.printWriter.println("You have registered into the system");
+        while (scanner.hasNextLine()) {
+            message = scanner.nextLine();
+            //args is a String array containing all parts of the message separated by ' ';
+            String[] args = message.split(" ");
+            if (message.equals("")) {
+                this.printWriter.println("No message found, please try again");
+            } else if (!ClientCommands.containsCommand(args[0])) {
+                this.printWriter.println("This is not a valid command please try again");
+            } else if (message.equals(ClientCommands.QUIT.toString())) {
+                this.quitHandle();
+                break;
+            } else if (args[0].contains("room")) {
+                this.roomHandle(args);
+            } else if (args[0].contains(ClientCommands.SEND.toString())) {
+                this.sendHandle(args, message);
+            } else if (args[0].equals(ClientCommands.ACCEPT.toString()) || args[0].equals(ClientCommands.DECLINE.toString())) {
+                this.fileHandle(args);
+            } else if (args[0].equals(ClientCommands.LIST_USERS.toString())) {
+                this.listUsers(args);
+            } else {
+                this.registrationHandle(args);
+            }
         }
     }
 
-    private void login(String name, String password) {
-        if (this.name.equals(name) && this.password.equals(password)) {
-            if (!this.isLoggedIn) {
-                this.printWriter.println("You have logged into the system");
-                this.isLoggedIn = true;
+    private void quitHandle() {
+        this.isLoggedIn = false;
+        this.printWriter.println("Goodbye");
+        this.printWriter.println(ClientCommands.QUIT.toString());
+        this.server.removeClient(this);
+    }
+
+    private void roomHandle(String[] args) {
+        if (args.length == 2) {
+            if (args[0].equals(ClientCommands.CREATE_ROOM.toString())) {
+                this.createRoom(args[1]);
+            } else if (args[0].equals(ClientCommands.DELETE_ROOM.toString())) {
+                this.deleteRoom(args[1]);
+            } else if (args[0].equals(ClientCommands.JOIN_ROOM.toString())) {
+                this.joinRoom(args);
+            } else if (args[0].equals(ClientCommands.LEAVE_ROOM.toString())) {
+                this.leaveRoom(args);
             } else {
-                this.printWriter.println("You have already logged into the system");
+                this.printWriter.println("Something is wrong");
             }
+        } else if (args.length == 1 && args[0].equals(ClientCommands.LIST_ROOMS.toString())) {
+            this.server.listActiveChatRooms(this.getPrintWriter());
         } else {
-            this.printWriter.println("Wrong username or password");
+            this.printWriter.println("Something is wrong");
         }
     }
 
@@ -147,65 +158,6 @@ public class ClientThread implements Runnable {
         }*/
     }
 
-
-    private void registrationHandle(String[] args) {
-        if (args.length == 3 && args[0].equals(ClientCommands.REGISTER.toString())) {
-            this.registerUser(args[1], args[2]);
-        } else if (args.length == 3 && args[0].equals(ClientCommands.LOGIN.toString()) && args[1].equals(this.name)) {
-            this.login(args[1], args[2]);
-        } else if (args.length == 1 && args[0].equals(ClientCommands.DISCONNECT.toString())) {
-            if (this.isLoggedIn) {
-                this.printWriter.println("You have disconnected from the system");
-                this.isLoggedIn = false;
-            } else {
-                this.printWriter.println("You have already disconnected from the system");
-            }
-        } else {
-            this.printWriter.println("Invalid, try again");
-        }
-    }
-
-    private void roomHandle(String[] args) {
-        if (args.length == 2) {
-            if (args[0].equals(ClientCommands.CREATE_ROOM.toString())) {
-                this.createRoom(args[1]);
-            } else if (args[0].equals(ClientCommands.DELETE_ROOM.toString())) {
-                this.deleteRoom(args[1]);
-            } else if (args[0].equals(ClientCommands.JOIN_ROOM.toString())) {
-                this.joinRoom(args);
-            } else if (args[0].equals(ClientCommands.LEAVE_ROOM.toString())) {
-                this.leaveRoom(args);
-            } else {
-                this.printWriter.println("Something is wrong");
-            }
-        } else if (args.length == 1 && args[0].equals(ClientCommands.LIST_ROOMS.toString())) {
-            this.server.listActiveChatRooms(this.getPrintWriter());
-        } else {
-            this.printWriter.println("Something is wrong");
-        }
-    }
-
-    private void fileHandle(String[] args) {
-        if (!this.isLoggedIn) {
-            this.printWriter.println("You are not logged in");
-        } else if (args.length == 1 && args[0].equals(ClientCommands.DECLINE.toString())) {
-            if (this.sendingFilePath != null) {
-                this.printWriter.println("File transfer declined");
-                this.sendingFilePath = null;
-            }
-        } else if (args.length == 2 && args[0].equals(ClientCommands.ACCEPT.toString())) {
-            if (!this.isValidLocation(args[1])) {
-                this.printWriter.println("Invalid location, please try again");
-            } else if (this.sendingFilePath != null) {
-                this.printWriter.println("File transfer accepted");
-                this.server.sendFile(this.sendingFilePath, args[1], this.name);
-                this.sendingFilePath = null;
-            }
-        } else {
-            this.printWriter.println("Something is wrong");
-        }
-    }
-
     private void sendHandle(String[] args, String message) {
         if (!this.isLoggedIn) {
             this.printWriter.println("You are not logged in");
@@ -235,6 +187,27 @@ public class ClientThread implements Runnable {
         }
     }
 
+    private void fileHandle(String[] args) {
+        if (!this.isLoggedIn) {
+            this.printWriter.println("You are not logged in");
+        } else if (args.length == 1 && args[0].equals(ClientCommands.DECLINE.toString())) {
+            if (this.sendingFilePath != null) {
+                this.printWriter.println("File transfer declined");
+                this.sendingFilePath = null;
+            }
+        } else if (args.length == 2 && args[0].equals(ClientCommands.ACCEPT.toString())) {
+            if (!FileLocationValidator.isValidLocation(args[1])) {
+                this.printWriter.println("Invalid location, please try again");
+            } else if (this.sendingFilePath != null) {
+                this.printWriter.println("File transfer accepted");
+                this.server.sendFile(this.sendingFilePath, args[1], this.name);
+                this.sendingFilePath = null;
+            }
+        } else {
+            this.printWriter.println("Something is wrong");
+        }
+    }
+
     private void listUsers(String[] args) {
         if (this.isLoggedIn) {
             if (args.length == 1) {
@@ -251,40 +224,55 @@ public class ClientThread implements Runnable {
         }
     }
 
-    private void quitHandle() {
-        this.isLoggedIn = false;
-        this.printWriter.println("Goodbye");
-        this.printWriter.println(ClientCommands.QUIT.toString());
-        this.server.removeClient(this);
+    private void registrationHandle(String[] args) {
+        if (args.length == 3 && args[0].equals(ClientCommands.REGISTER.toString())) {
+            this.registerUser(args[1], args[2]);
+        } else if (args.length == 3 && args[0].equals(ClientCommands.LOGIN.toString()) && args[1].equals(this.name)) {
+            this.login(args[1], args[2]);
+        } else if (args.length == 1 && args[0].equals(ClientCommands.DISCONNECT.toString())) {
+            if (this.isLoggedIn) {
+                this.printWriter.println("You have disconnected from the system");
+                this.isLoggedIn = false;
+            } else {
+                this.printWriter.println("You have already disconnected from the system");
+            }
+        } else {
+            this.printWriter.println("Invalid, try again");
+        }
     }
 
-    @Override
-    public void run() {
-        Scanner scanner = new Scanner(this.clientInputStream);
-        String message;
-
-        while (scanner.hasNextLine()) {
-            message = scanner.nextLine();
-            //args is a String array containing all parts of the message separated by ' ';
-            String[] args = message.split(" ");
-            if (message.equals("")) {
-                this.printWriter.println("No message found, please try again");
-            } else if (!ClientCommands.containsCommand(args[0])) {
-                this.printWriter.println("This is not a valid command please try again");
-            } else if (message.equals(ClientCommands.QUIT.toString())) {
-                this.quitHandle();
-                break;
-            } else if (args[0].contains("room")) {
-                this.roomHandle(args);
-            } else if (args[0].contains(ClientCommands.SEND.toString())) {
-                this.sendHandle(args, message);
-            } else if (args[0].equals(ClientCommands.ACCEPT.toString()) || args[0].equals(ClientCommands.DECLINE.toString())) {
-                this.fileHandle(args);
-            } else if (args[0].equals(ClientCommands.LIST_USERS.toString())) {
-                this.listUsers(args);
-            } else {
-                this.registrationHandle(args);
-            }
+    private void registerUser(String name, String password) {
+        if (this.name != null) {
+            this.printWriter.println("You have already registered into the system");
+        } else if (this.server.isUsedUserData(name, password)) {
+            this.printWriter.println("Choose another username or password");
+        } else {
+            this.name = name;
+            this.password = password;
+            this.server.addInfoToDocumentation(this.name, this.password);
+            this.server.addInfoForUser(this.name, this);
+            this.printWriter.println("You have registered into the system");
         }
+    }
+
+    private void login(String name, String password) {
+        if (this.name.equals(name) && this.password.equals(password)) {
+            if (!this.isLoggedIn) {
+                this.printWriter.println("You have logged into the system");
+                this.isLoggedIn = true;
+            } else {
+                this.printWriter.println("You have already logged into the system");
+            }
+        } else {
+            this.printWriter.println("Wrong username or password");
+        }
+    }
+
+    private boolean isMemberOfGivenChatRoom(String roomName) {
+        return this.server.getChatRoomByName(roomName).containsMember(this.name);
+    }
+
+    private void setSendingFilePath(String path) {
+        this.sendingFilePath = path;
     }
 }

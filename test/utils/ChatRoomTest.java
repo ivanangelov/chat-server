@@ -21,7 +21,7 @@ public class ChatRoomTest {
     @Test
     public void testGetActiveUsersRoomWithNoUsers() {
         ChatRoom chatRoom = new ChatRoom(ROOM_NAME, ROOM_CREATOR);
-        Assert.assertEquals("room with no added users has 0 users", 0, chatRoom.getActiveUsersRoom().size());
+        Assert.assertEquals("room with no added users has 0 users", 0, chatRoom.getActiveUsersInRoom().size());
     }
 
     @Test
