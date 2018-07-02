@@ -48,10 +48,10 @@ public class ServerTest {
         Assert.assertEquals("the room should't be contained", false, server.containsChatRoom("staq"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetClientByNameWithNotMemberClient() {
         Server server = new Server(PORT);
-        server.getClientByName("ivan");
+        Assert.assertEquals("the client is not contained", null, server.getClientByName("ivan"));
     }
 
     @Test

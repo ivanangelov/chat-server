@@ -1,4 +1,5 @@
 package bg.uni.sofia.fmi.mjt.finals.server;
+
 import bg.uni.sofia.fmi.mjt.finals.utils.ChatRoom;
 import bg.uni.sofia.fmi.mjt.finals.utils.Pair;
 
@@ -74,7 +75,7 @@ public class Server {
     }
 
     public boolean isActiveClient(String clientName) {
-        return this.clientsWithData.get(clientName).getIsLoggedIn();
+        return this.clientsWithData.keySet().contains(clientName) && this.clientsWithData.get(clientName).getIsLoggedIn();
     }
 
     public boolean containsClient(String clientName) {
@@ -82,7 +83,9 @@ public class Server {
     }
 
     public void broadcastMessage(String msg, String receiver) {
-        this.clientsWithData.get(receiver).getPrintWriter().println(msg);
+        if (this.clientsWithData.containsKey(receiver)) {
+            this.clientsWithData.get(receiver).getPrintWriter().println(msg);
+        }
     }
 
     public void listActiveUsers(PrintWriter printWriter) {
@@ -96,7 +99,6 @@ public class Server {
             }
         }
         return false;
-        //return this.userData.contains(new Pair<>(name, password));
     }
 
     public void listActiveChatRooms(PrintWriter printWriter) {
